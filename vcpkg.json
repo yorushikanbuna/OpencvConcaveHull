@@ -1,0 +1,21 @@
+{
+    "builtin-baseline": "5128d5b9e3a7737b220f25e6ce048c98db004001",
+    "dependencies": [
+        {
+            "features": [
+                "default-features"
+            ],
+            "name": "opencv4",
+            "version>=": "4.7.0"
+        }
+    ],
+    "name": "concave-hull-proj",
+    "overrides": [
+        {
+            "name": "opencv4",
+            "port-version": 6,
+            "version-string": "4.7.0"
+        }
+    ],
+    "version-semver": "1.0.0"
+}
