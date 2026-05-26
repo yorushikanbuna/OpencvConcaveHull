@@ -167,6 +167,101 @@ std::vector<cv::Point2d> ConcaveHull(const std::vector<cv::Point2d>& points, int
     return hull;
 }
 
+void SaveHullToFile(const std::vector<cv::Point2d>& hull,
+                    const std::string& path,
+                    int inputCount, int k) {
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "错误：无法创建输出文件 " << path << std::endl;
+        exit(1);
+    }
+
+    file << "# 凹包结果 - 输入" << inputCount
+         << "个点 -> 输出" << hull.size()
+         << "个边界点 (k=" << k << ")" << std::endl;
+
+    file.precision(12);
+    for (const auto& p : hull) {
+        file << std::fixed << p.x << " " << p.y << std::endl;
+    }
+
+    std::cout << "凹包文本已保存至: " << path << std::endl;
+}
+
+void Visualize(const std::vector<cv::Point2d>& points,
+               const std::vector<cv::Point2d>& hull,
+               const std::string& outputPath) {
+    if (points.empty()) return;
+
+    // 计算包围盒
+    double minX = points[0].x, maxX = points[0].x;
+    double minY = points[0].y, maxY = points[0].y;
+    for (const auto& p : points) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+    }
+
+    // 10%边距
+    double marginX = (maxX - minX) * 0.10;
+    double marginY = (maxY - minY) * 0.10;
+    if (marginX < 1.0) marginX = 1.0;
+    if (marginY < 1.0) marginY = 1.0;
+    minX -= marginX; maxX += marginX;
+    minY -= marginY; maxY += marginY;
+
+    double dataW = maxX - minX;
+    double dataH = maxY - minY;
+
+    // 图像尺寸，按数据宽高比适配
+    int imgW = 1920;
+    int imgH = 1080;
+    double dataAspect = dataW / dataH;
+    double imgAspect = static_cast<double>(imgW) / imgH;
+    if (dataAspect > imgAspect) {
+        imgH = static_cast<int>(imgW / dataAspect);
+    } else {
+        imgW = static_cast<int>(imgH * dataAspect);
+    }
+    imgW = std::max(1, imgW);
+    imgH = std::max(1, imgH);
+
+    // 世界坐标 -> 图像坐标
+    auto worldToImg = [&](const cv::Point2d& wp) -> cv::Point {
+        int ix = static_cast<int>((wp.x - minX) / dataW * imgW);
+        int iy = static_cast<int>((maxY - wp.y) / dataH * imgH);
+        return cv::Point(ix, iy);
+    };
+
+    cv::Mat image(imgH, imgW, CV_8UC3, cv::Scalar(0, 0, 0));
+
+    // 输入点：蓝色小圆
+    for (const auto& p : points) {
+        cv::circle(image, worldToImg(p), 2, cv::Scalar(255, 0, 0), -1);
+    }
+
+    // 凹包边界：红色折线
+    if (hull.size() >= 2) {
+        std::vector<cv::Point> imgHull;
+        imgHull.reserve(hull.size() + 1);
+        for (const auto& p : hull) {
+            imgHull.push_back(worldToImg(p));
+        }
+        imgHull.push_back(worldToImg(hull[0]));
+        cv::polylines(image, imgHull, false, cv::Scalar(0, 0, 255), 2);
+    }
+
+    // 凹包顶点：绿色填充圆
+    for (const auto& p : hull) {
+        cv::circle(image, worldToImg(p), 4, cv::Scalar(0, 255, 0), -1);
+    }
+
+    cv::imwrite(outputPath, image);
+    std::cout << "可视化图像已保存至: " << outputPath
+              << " (" << imgW << "x" << imgH << ")" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
     std::cout << "=== POS文件凹包生成器 ===" << std::endl;
 
@@ -186,6 +281,14 @@ int main(int argc, char* argv[]) {
 
     // 3. 计算凹包
     auto hull = ConcaveHull(points, k);
+
+    // 4. 保存凹包文本
+    std::string txtPath = "E:/ImageDataset/pozhuangcun/concave_hull.txt";
+    SaveHullToFile(hull, txtPath, static_cast<int>(points.size()), k);
+
+    // 5. 可视化
+    std::string imgPath = "E:/ImageDataset/pozhuangcun/concave_hull.png";
+    Visualize(points, hull, imgPath);
 
     return 0;
 }
