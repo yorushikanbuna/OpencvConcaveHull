@@ -10,5 +10,11 @@ endif()
 
 find_package(OpenCV REQUIRED)
 
-add_executable(concave_hull concave_hull.cpp)
+add_executable(concave_hull
+    main.cpp
+    pos_reader.cpp
+    concave_hull.cpp
+    output.cpp
+    tests.cpp
+)
 target_link_libraries(concave_hull PRIVATE ${OpenCV_LIBS})
