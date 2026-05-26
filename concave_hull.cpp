@@ -25,9 +25,7 @@ std::vector<cv::Point2d> ParsePosFile(const std::string& path) {
     int lineNum = 0;
     while (std::getline(file, line)) {
         lineNum++;
-        // 跳过空行
         if (line.empty()) continue;
-        // 跳过注释行
         if (line[0] == '#') continue;
 
         std::istringstream iss(line);
@@ -63,12 +61,131 @@ std::vector<cv::Point2d> ParsePosFile(const std::string& path) {
     return points;
 }
 
+// 计算从向量v1到v2的有符号角度 [-pi, pi]
+// 正值=逆时针, 负值=顺时针
+static double SignedAngle(const cv::Point2d& v1, const cv::Point2d& v2) {
+    double cross = v1.x * v2.y - v1.y * v2.x;
+    double dot = v1.x * v2.x + v1.y * v2.y;
+    return std::atan2(cross, dot);
+}
+
+// 欧氏距离平方
+static double DistSq(const cv::Point2d& a, const cv::Point2d& b) {
+    double dx = a.x - b.x;
+    double dy = a.y - b.y;
+    return dx * dx + dy * dy;
+}
+
+std::vector<cv::Point2d> ConcaveHull(const std::vector<cv::Point2d>& points, int k) {
+    const int n = static_cast<int>(points.size());
+
+    if (n < 3) {
+        return points;
+    }
+
+    k = std::min(k, n - 1);
+    if (k < 1) k = 1;
+
+    // 1. 构建k近邻索引
+    std::vector<std::vector<int>> knnIndex(n);
+    for (int i = 0; i < n; ++i) {
+        std::vector<std::pair<double, int>> dists;
+        dists.reserve(n - 1);
+        for (int j = 0; j < n; ++j) {
+            if (i == j) continue;
+            dists.emplace_back(DistSq(points[i], points[j]), j);
+        }
+        std::sort(dists.begin(), dists.end());
+        knnIndex[i].reserve(k);
+        for (int m = 0; m < k && m < static_cast<int>(dists.size()); ++m) {
+            knnIndex[i].push_back(dists[m].second);
+        }
+    }
+
+    // 2. 找起点：最右侧的点
+    int startIdx = 0;
+    for (int i = 1; i < n; ++i) {
+        if (points[i].x > points[startIdx].x ||
+            (points[i].x == points[startIdx].x && points[i].y > points[startIdx].y)) {
+            startIdx = i;
+        }
+    }
+
+    // 3. 边界追踪（逆时针方向）
+    std::vector<cv::Point2d> hull;
+    std::vector<bool> visited(n, false);
+    int currentIdx = startIdx;
+    // 虚构的前一个点：在起点正上方，使初始方向朝下
+    // 从最右侧点出发，选择最大逆时针转角，沿逆时针遍历边界
+    cv::Point2d previous = points[startIdx];
+    previous.y += 1.0;
+
+    const int maxIter = n * 2;
+    for (int iter = 0; iter < maxIter; ++iter) {
+        hull.push_back(points[currentIdx]);
+        visited[currentIdx] = true;
+
+        const auto& current = points[currentIdx];
+        cv::Point2d dirPrev(current.x - previous.x, current.y - previous.y);
+
+        double bestAngle = -std::numeric_limits<double>::max();
+        int bestIdx = -1;
+
+        for (int neighborIdx : knnIndex[currentIdx]) {
+            if (neighborIdx == currentIdx) continue;
+            if (visited[neighborIdx]) continue;
+
+            const auto& candidate = points[neighborIdx];
+            cv::Point2d dirCand(candidate.x - current.x, candidate.y - current.y);
+
+            double angle = SignedAngle(dirPrev, dirCand);
+            if (angle > bestAngle) {
+                bestAngle = angle;
+                bestIdx = neighborIdx;
+            }
+        }
+
+        // 未找到未访问的候选点，尝试放宽：允许回到起点
+        if (bestIdx < 0) {
+            for (int neighborIdx : knnIndex[currentIdx]) {
+                if (neighborIdx == currentIdx) continue;
+                if (neighborIdx == startIdx && hull.size() >= 3) {
+                    bestIdx = neighborIdx;
+                    break;
+                }
+            }
+        }
+
+        if (bestIdx < 0) break;
+        if (bestIdx == startIdx) break;
+
+        previous = current;
+        currentIdx = bestIdx;
+    }
+
+    std::cout << "凹包计算完成：" << hull.size() << " 个边界顶点 (k=" << k << ")" << std::endl;
+    return hull;
+}
+
 int main(int argc, char* argv[]) {
     std::cout << "=== POS文件凹包生成器 ===" << std::endl;
 
     // 1. 解析POS文件
     auto points = ParsePosFile(POS_PATH);
-    std::cout << "点集大小: " << points.size() << std::endl;
+
+    // 2. 确定k值：auto + CLI覆盖
+    int k = static_cast<int>(std::sqrt(points.size()));
+    k = std::clamp(k, 3, 60);
+    if (argc >= 2) {
+        k = std::atoi(argv[1]);
+        k = std::max(1, k);
+        std::cout << "使用命令行参数 k=" << k << std::endl;
+    } else {
+        std::cout << "自动确定 k=" << k << " (sqrt(N))" << std::endl;
+    }
+
+    // 3. 计算凹包
+    auto hull = ConcaveHull(points, k);
 
     return 0;
 }
