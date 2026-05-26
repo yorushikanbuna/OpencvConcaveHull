@@ -6,13 +6,16 @@
 
 ```
 ConcaveHullProj/
-├── main.cpp              # 程序入口，流程编排
-├── pos_reader.h/cpp      # POS文件解析模块
-├── concave_hull.h/cpp    # 凹包计算核心算法
-├── output.h/cpp          # 文本输出 + 图像可视化
-├── tests.h/cpp           # 单元自测
-├── CMakeLists.txt        # CMake构建配置
-├── vcpkg.json            # vcpkg依赖清单
+├── src/
+│   ├── main.cpp              # 程序入口，流程编排
+│   ├── pos_reader.h/cpp      # POS文件解析模块
+│   ├── concave_hull.h/cpp    # 凹包计算核心算法
+│   ├── output.h/cpp          # 文本输出 + 图像可视化
+│   └── tests.h/cpp           # 单元自测
+├── docs/                     # 设计文档
+├── CMakeLists.txt            # CMake构建配置
+├── vcpkg.json                # vcpkg依赖清单
+├── LICENSE                   # MIT许可证
 └── README.md
 ```
 
