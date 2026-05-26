@@ -43,11 +43,14 @@ cmake --build . --config Release
 ### 3. 运行
 
 ```bash
+# 基本用法：POS文件路径为必需参数
+./Release/concave_hull.exe <POS文件路径>
+
 # 使用自动确定的k值
-./Release/concave_hull.exe
+./Release/concave_hull.exe E:/data/pos.txt
 
 # 手动指定k值（k越小凹包越紧密）
-./Release/concave_hull.exe 30
+./Release/concave_hull.exe E:/data/pos.txt 30
 ```
 
 ### 4. 输出
@@ -150,14 +153,6 @@ A/A0002.JPG 528862.590974 3802421.315441 77.216743
   ●           ●             ●        ●─●
    \         /              \        ●─●
     ●───●───●                ●─●─●─●
-```
-
-## 配置
-
-修改 `main.cpp` 中的 `POS_PATH` 常量即可更改输入文件路径：
-
-```cpp
-const std::string POS_PATH = R"(你的POS文件路径)";
 ```
 
 ## 许可

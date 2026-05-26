@@ -8,23 +8,30 @@
 #include "output.h"
 #include "tests.h"
 
-// 硬编码POS文件路径
-const std::string POS_PATH = R"(E:\v3d_proj\new_extractor\new_extractor\fenghuo\pos.txt)";
-
 int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cout << "用法: concave_hull <POS文件路径> [k值]" << std::endl;
+        std::cout << "  POS文件路径  必需，格式: 影像名 X Y Z（空格分隔）" << std::endl;
+        std::cout << "  k值          可选，控制凹包松紧 (3~60)，默认自动确定" << std::endl;
+        std::cout << "  示例: concave_hull E:/data/pos.txt 30" << std::endl;
+        return 1;
+    }
+
     std::cout << "=== POS文件凹包生成器 ===" << std::endl;
 
     // 自测
     RunTests();
 
+    const std::string posPath = argv[1];
+
     // 1. 解析POS文件
-    auto points = ParsePosFile(POS_PATH);
+    auto points = ParsePosFile(posPath);
 
     // 2. 确定k值：auto + CLI覆盖
     int k = static_cast<int>(std::sqrt(points.size()));
     k = std::clamp(k, 3, 60);
-    if (argc >= 2) {
-        k = std::atoi(argv[1]);
+    if (argc >= 3) {
+        k = std::atoi(argv[2]);
         k = std::max(1, k);
         std::cout << "使用命令行参数 k=" << k << std::endl;
     } else {
@@ -35,7 +42,7 @@ int main(int argc, char* argv[]) {
     auto hull = ConcaveHull(points, k);
 
     // 4. 保存凹包文本
-    std::string parentDir = POS_PATH.substr(0, POS_PATH.find_last_of("\\/"));
+    std::string parentDir = posPath.substr(0, posPath.find_last_of("\\/"));
     std::string txtPath = parentDir + "/concave_hull.txt";
     SaveHullToFile(hull, txtPath, static_cast<int>(points.size()), k);
 
