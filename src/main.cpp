@@ -3,12 +3,19 @@
 #include <string>
 #include <algorithm>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "pos_reader.h"
 #include "concave_hull.h"
 #include "output.h"
 #include "tests.h"
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
     if (argc < 2) {
         std::cout << "用法: concave_hull <POS文件路径> [k值]" << std::endl;
         std::cout << "  POS文件路径  必需，格式: 影像名 X Y Z（空格分隔）" << std::endl;
